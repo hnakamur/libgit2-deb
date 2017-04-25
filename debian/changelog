@@ -1,3 +1,9 @@
+libgit2 (0.25.1-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Russell Sim <russell.sim@gmail.com>  Tue, 25 Apr 2017 07:29:37 +0200
+
 libgit2 (0.24.5-1) unstable; urgency=medium
 
   * New upstream release.
