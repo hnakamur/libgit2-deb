@@ -1,6 +1,7 @@
 libgit2 (0.25.1-1) UNRELEASED; urgency=medium
 
-  * New upstream release.
+  * New upstream release. (CVE-2016-10128, CVE-2016-10129, CVE-2016-10130)
+    (Closes: #851406, #857068)
 
  -- Russell Sim <russell.sim@gmail.com>  Tue, 25 Apr 2017 07:29:37 +0200
 
