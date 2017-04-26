@@ -1,3 +1,4 @@
+Update the condition around the HTTPS feature to match when it's enabled.
 diff --git a/tests/core/features.c b/tests/core/features.c
 index cf5e190..6d4273a 100644
 --- a/tests/core/features.c
