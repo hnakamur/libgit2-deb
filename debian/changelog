@@ -1,3 +1,9 @@
+libgit2 (0.25.1-2) unstable; urgency=medium
+
+  * Upload to unstable
+
+ -- Russell Sim <russell.sim@gmail.com>  Sat, 20 May 2017 19:27:39 +0200
+
 libgit2 (0.25.1-1) experimental; urgency=medium
 
   * New upstream release. (CVE-2016-10128, CVE-2016-10129, CVE-2016-10130)
