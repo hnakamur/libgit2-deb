@@ -1,3 +1,18 @@
+libgit2 (0.25.1.0-1) unstable; urgency=medium
+
+  * Release 0.25.1. (Closes: #869665)
+
+ -- Russell Sim <russell.sim@gmail.com>  Wed, 26 Jul 2017 19:45:18 +0200
+
+libgit2 (0.25.1+really0.24.6-1) unstable; urgency=medium
+
+  * Revert 0.25.1 in unstable, 0.24.5 was already in unstable 0.25.1 was
+    uploaded after the freeze.
+  * Release 0.24.6 (CVE-2016-10128, CVE-2016-10129, CVE-2016-10130)
+    (Closes: #851406)
+
+ -- Russell Sim <russell.sim@gmail.com>  Sun, 21 May 2017 18:18:47 +0200
+
 libgit2 (0.25.1-2) unstable; urgency=medium
 
   * Upload to unstable
