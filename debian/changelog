@@ -1,8 +1,10 @@
-libgit2 (0.25.1.0-1) unstable; urgency=medium
+libgit2 (0.26.0+dfsg.1-1) experimental; urgency=medium
 
-  * Release 0.25.1. (Closes: #869665)
+  * New upstream release.
+  * Enable GSS authentication support.
+  * Remove unused deps (Closes: #861752)
 
- -- Russell Sim <russell.sim@gmail.com>  Wed, 26 Jul 2017 19:45:18 +0200
+ -- Russell Sim <russell.sim@gmail.com>  Sat, 29 Jul 2017 15:58:46 +0200
 
 libgit2 (0.25.1+really0.24.6-1) unstable; urgency=medium
 
