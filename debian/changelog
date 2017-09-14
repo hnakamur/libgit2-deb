@@ -1,9 +1,10 @@
-libgit2 (0.26.0+dfsg.1-1.1) UNRELEASED; urgency=medium
+libgit2 (0.26.0+dfsg.1-1.1) unstable; urgency=medium
 
   * Non-maintainer upload.
+  * Upload to unstable.
   * Use git_curl_stream_new for HTTPS because we don't link against openssl.
 
- -- Ximin Luo <infinity0@debian.org>  Tue, 01 Aug 2017 15:54:10 +0200
+ -- Ximin Luo <infinity0@debian.org>  Thu, 14 Sep 2017 11:52:10 +0200
 
 libgit2 (0.26.0+dfsg.1-1) experimental; urgency=medium
 
