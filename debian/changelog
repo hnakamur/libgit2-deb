@@ -1,3 +1,22 @@
+libgit2 (0.26.0+dfsg.1-1.2) unstable; urgency=medium
+
+  * Non-maintainer upload.
+
+  * Declare compliance with standards version 4.1.3.
+    * debian/control: Replace `Priority: extra` with `optional`
+    * debian/copyright
+      + Refer to the CC0 license file.
+        Closes: #882632
+      + Use HTTPS URIs
+
+  * Make the package lintian-clean
+    * debian/control
+      + Use canonical Vcs-* URLs
+      + Use an HTTPS URL for the homepage
+    * Switch to debhelper 11
+
+ -- Nicolas Braud-Santoni <nicolas@braud-santoni.eu>  Fri, 19 Jan 2018 23:55:40 +0100
+
 libgit2 (0.26.0+dfsg.1-1.1) unstable; urgency=medium
 
   * Non-maintainer upload.
