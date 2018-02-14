@@ -16,8 +16,12 @@ libgit2 (0.26.0+dfsg.1-1.2) unstable; urgency=medium
       + Use canonical Vcs-* URLs
       + Use an HTTPS URL for the homepage
     * Switch to debhelper 11
+    * Lintian overrides
+      * Remove empty override files
+      * Relocate source file to debian/source/
+      * Rename tag debian-watch-may-check-gpg-signature
 
- -- Nicolas Braud-Santoni <nicolas@braud-santoni.eu>  Fri, 19 Jan 2018 23:55:40 +0100
+ -- Nicolas Braud-Santoni <nicolas@braud-santoni.eu>  Wed, 14 Feb 2018 16:34:02 +0100
 
 libgit2 (0.26.0+dfsg.1-1.1) unstable; urgency=medium
 
