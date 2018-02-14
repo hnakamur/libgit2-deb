@@ -9,6 +9,8 @@ libgit2 (0.26.0+dfsg.1-1.2) unstable; urgency=medium
         Closes: #882632
       + Use HTTPS URIs
 
+  * debian/watch: Fix generated version numbers
+
   * Make the package lintian-clean
     * debian/control
       + Use canonical Vcs-* URLs
