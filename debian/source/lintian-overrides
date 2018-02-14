@@ -1,1 +1,1 @@
-libgit2: debian-watch-may-check-gpg-signature
+libgit2: debian-watch-does-not-check-gpg-signature
