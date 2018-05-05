@@ -6,6 +6,7 @@ Reviewed-by: Nicolas Braud-Santoni <nicolas@braud-santoni.eu>
 Last-Update: 2018-05-02
 
 The original Debian patchset was authored by Ximin Luo <infinity0@debian.org>
+Original pull request https://github.com/libgit2/libgit2/pull/4325
 ---
  src/CMakeLists.txt    |  3 +++
  src/streams/curl.c    | 14 +++++++++++---
