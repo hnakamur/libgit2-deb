@@ -1,0 +1,1721 @@
+From ca3b2234dc7f1bd0d0f81488d3e29980b47a85b4 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:13:56 +0200
+Subject: [PATCH 01/15] mbedtls: initial support
+
+---
+ cmake/Modules/FindmbedTLS.cmake |  93 +++++++++++
+ src/CMakeLists.txt              |  13 ++
+ src/features.h.in               |   1 +
+ src/settings.c                  |  11 ++
+ src/streams/mbedtls.c           | 344 ++++++++++++++++++++++++++++++++++++++++
+ src/streams/mbedtls.h           |  18 +++
+ src/streams/tls.c               |   3 +
+ 7 files changed, 483 insertions(+)
+ create mode 100644 cmake/Modules/FindmbedTLS.cmake
+ create mode 100644 src/streams/mbedtls.c
+ create mode 100644 src/streams/mbedtls.h
+
+diff --git a/cmake/Modules/FindmbedTLS.cmake b/cmake/Modules/FindmbedTLS.cmake
+new file mode 100644
+index 0000000000..93297555e8
+--- /dev/null
++++ b/cmake/Modules/FindmbedTLS.cmake
+@@ -0,0 +1,93 @@
++# - Try to find mbedTLS
++# Once done this will define
++#
++# Read-Only variables
++#  MBEDTLS_FOUND - system has mbedTLS
++#  MBEDTLS_INCLUDE_DIR - the mbedTLS include directory
++#  MBEDTLS_LIBRARY_DIR - the mbedTLS library directory
++#  MBEDTLS_LIBRARIES - Link these to use mbedTLS
++#  MBEDTLS_LIBRARY - path to mbedTLS library
++#  MBEDX509_LIBRARY - path to mbedTLS X.509 library
++#  MBEDCRYPTO_LIBRARY - path to mbedTLS Crypto library
++#
++# Hint
++#  MBEDTLS_ROOT_DIR can be pointed to a local mbedTLS installation.
++
++SET(_MBEDTLS_ROOT_HINTS
++    ${MBEDTLS_ROOT_DIR}
++    ENV MBEDTLS_ROOT_DIR
++)
++
++SET(_MBEDTLS_ROOT_HINTS_AND_PATHS
++    HINTS ${_MBEDTLS_ROOT_HINTS}
++    PATHS ${_MBEDTLS_ROOT_PATHS}
++)
++
++FIND_PATH(MBEDTLS_INCLUDE_DIR
++    NAMES mbedtls/version.h
++    ${_MBEDTLS_ROOT_HINTS_AND_PATHS}
++    PATH_SUFFIXES include
++)
++
++IF(MBEDTLS_INCLUDE_DIR AND MBEDTLS_LIBRARIES)
++    # Already in cache, be silent
++    SET(MBEDTLS_FIND_QUIETLY TRUE)
++ENDIF()
++
++FIND_LIBRARY(MBEDTLS_LIBRARY
++    NAMES mbedtls libmbedtls
++    ${_MBEDTLS_ROOT_HINTS_AND_PATHS}
++    PATH_SUFFIXES library
++)
++FIND_LIBRARY(MBEDX509_LIBRARY
++    NAMES mbedx509 libmbedx509
++    ${_MBEDTLS_ROOT_HINTS_AND_PATHS}
++    PATH_SUFFIXES library
++)
++FIND_LIBRARY(MBEDCRYPTO_LIBRARY
++    NAMES mbedcrypto libmbedcrypto
++    ${_MBEDTLS_ROOT_HINTS_AND_PATHS}
++    PATH_SUFFIXES library
++)
++
++IF(MBEDTLS_INCLUDE_DIR AND MBEDTLS_LIBRARY AND MBEDX509_LIBRARY AND MBEDCRYPTO_LIBRARY)
++     SET(MBEDTLS_FOUND TRUE)
++ENDIF()
++
++IF(MBEDTLS_FOUND)
++    # split mbedTLS into -L and -l linker options, so we can set them for pkg-config
++    GET_FILENAME_COMPONENT(MBEDTLS_LIBRARY_DIR ${MBEDTLS_LIBRARY} PATH)
++    GET_FILENAME_COMPONENT(MBEDTLS_LIBRARY_FILE ${MBEDTLS_LIBRARY} NAME_WE)
++    GET_FILENAME_COMPONENT(MBEDX509_LIBRARY_FILE ${MBEDX509_LIBRARY} NAME_WE)
++    GET_FILENAME_COMPONENT(MBEDCRYPTO_LIBRARY_FILE ${MBEDCRYPTO_LIBRARY} NAME_WE)
++    STRING(REGEX REPLACE "^lib" "" MBEDTLS_LIBRARY_FILE ${MBEDTLS_LIBRARY_FILE})
++    STRING(REGEX REPLACE "^lib" "" MBEDX509_LIBRARY_FILE ${MBEDX509_LIBRARY_FILE})
++    STRING(REGEX REPLACE "^lib" "" MBEDCRYPTO_LIBRARY_FILE ${MBEDCRYPTO_LIBRARY_FILE})
++    SET(MBEDTLS_LIBRARIES "-L${MBEDTLS_LIBRARY_DIR} -l${MBEDTLS_LIBRARY_FILE} -l${MBEDX509_LIBRARY_FILE} -l${MBEDCRYPTO_LIBRARY_FILE}")
++
++    IF(NOT MBEDTLS_FIND_QUIETLY)
++        MESSAGE(STATUS "Found mbedTLS:")
++        FILE(READ ${MBEDTLS_INCLUDE_DIR}/mbedtls/version.h MBEDTLSCONTENT)
++        STRING(REGEX MATCH "MBEDTLS_VERSION_STRING +\"[0-9|.]+\"" MBEDTLSMATCH ${MBEDTLSCONTENT})
++        IF (MBEDTLSMATCH)
++            STRING(REGEX REPLACE "MBEDTLS_VERSION_STRING +\"([0-9|.]+)\"" "\\1" MBEDTLS_VERSION ${MBEDTLSMATCH})
++            MESSAGE(STATUS "  version ${MBEDTLS_VERSION}")
++        ENDIF(MBEDTLSMATCH)
++        MESSAGE(STATUS "  TLS: ${MBEDTLS_LIBRARY}")
++        MESSAGE(STATUS "  X509: ${MBEDX509_LIBRARY}")
++        MESSAGE(STATUS "  Crypto: ${MBEDCRYPTO_LIBRARY}")
++    ENDIF(NOT MBEDTLS_FIND_QUIETLY)
++ELSE(MBEDTLS_FOUND)
++    IF(MBEDTLS_FIND_REQUIRED)
++        MESSAGE(FATAL_ERROR "Could not find mbedTLS")
++    ENDIF(MBEDTLS_FIND_REQUIRED)
++ENDIF(MBEDTLS_FOUND)
++
++MARK_AS_ADVANCED(
++    MBEDTLS_INCLUDE_DIR
++    MBEDTLS_LIBRARY_DIR
++    MBEDTLS_LIBRARIES
++    MBEDTLS_LIBRARY
++    MBEDX509_LIBRARY
++    MBEDCRYPTO_LIBRARY
++)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index b03b96af93..cc6f5c961e 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -133,6 +133,7 @@ ELSE ()
+ ENDIF()
+ 
+ IF (USE_HTTPS)
++	FIND_PACKAGE(mbedTLS)
+ 	IF (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+ 		FIND_PACKAGE(Security)
+ 		FIND_PACKAGE(CoreFoundation)
+@@ -149,6 +150,8 @@ IF (USE_HTTPS)
+ 			ENDIF()
+ 		ELSEIF (WINHTTP)
+ 			SET(HTTPS_BACKEND "WinHTTP")
++		ELSEIF(MBEDTLS_FOUND)
++			SET(HTTPS_BACKEND "mbedTLS")
+ 		ELSE()
+ 			SET(HTTPS_BACKEND "OpenSSL")
+ 		ENDIF()
+@@ -185,6 +188,16 @@ IF (USE_HTTPS)
+ 		LIST(APPEND LIBGIT2_LIBS ${OPENSSL_LIBRARIES})
+ 		LIST(APPEND LIBGIT2_PC_LIBS ${OPENSSL_LDFLAGS})
+ 		LIST(APPEND LIBGIT2_PC_REQUIRES "openssl")
++	ELSEIF(HTTPS_BACKEND STREQUAL "mbedTLS")
++		IF (NOT MBEDTLS_FOUND)
++			MESSAGE(FATAL_ERROR "Asked for mbedTLS backend, but it wasn't found")
++		ENDIF()
++
++		SET(GIT_MBEDTLS 1)
++		LIST(APPEND LIBGIT2_INCLUDES ${MBEDTLS_INCLUDE_DIR})
++		LIST(APPEND LIBGIT2_LIBS ${MBEDTLS_LIBRARIES})
++		LIST(APPEND LIBGIT2_PC_LIBS ${MBEDTLS_LDFLAGS})
++		LIST(APPEND LIBGIT2_PC_REQUIRES "mbedtls")
+ 	ELSEIF (HTTPS_BACKEND STREQUAL "WinHTTP")
+ 		# WinHTTP setup was handled in the WinHTTP-specific block above
+ 	ELSE()
+diff --git a/src/features.h.in b/src/features.h.in
+index e03b7a2517..f7f162c2a7 100644
+--- a/src/features.h.in
++++ b/src/features.h.in
+@@ -27,6 +27,7 @@
+ #cmakedefine GIT_HTTPS 1
+ #cmakedefine GIT_OPENSSL 1
+ #cmakedefine GIT_SECURE_TRANSPORT 1
++#cmakedefine GIT_MBEDTLS 1
+ 
+ #cmakedefine GIT_SHA1_COLLISIONDETECT 1
+ #cmakedefine GIT_SHA1_WIN32 1
+diff --git a/src/settings.c b/src/settings.c
+index 2a52ffbf63..13ae6d4892 100644
+--- a/src/settings.c
++++ b/src/settings.c
+@@ -11,6 +11,10 @@
+ # include <openssl/err.h>
+ #endif
+ 
++#ifdef GIT_MBEDTLS
++# include <mbedtls/error.h>
++#endif
++
+ #include <git2.h>
+ #include "sysdir.h"
+ #include "cache.h"
+@@ -20,6 +24,7 @@
+ #include "refs.h"
+ #include "transports/smart.h"
+ #include "streams/openssl.h"
++#include "streams/mbedtls.h"
+ 
+ void git_libgit2_version(int *major, int *minor, int *rev)
+ {
+@@ -175,6 +180,12 @@ int git_libgit2_opts(int key, ...)
+ 			const char *path = va_arg(ap, const char *);
+ 			error = git_openssl__set_cert_location(file, path);
+ 		}
++#elif defined(GIT_MBEDTLS)
++		{
++			const char *file = va_arg(ap, const char *);
++			const char *path = va_arg(ap, const char *);
++			error = git_mbedtls__set_cert_location(file, path);
++		}
+ #else
+ 		giterr_set(GITERR_SSL, "TLS backend doesn't support certificate locations");
+ 		error = -1;
+diff --git a/src/streams/mbedtls.c b/src/streams/mbedtls.c
+new file mode 100644
+index 0000000000..fbef31e81d
+--- /dev/null
++++ b/src/streams/mbedtls.c
+@@ -0,0 +1,344 @@
++/*
++ * Copyright (C) the libgit2 contributors. All rights reserved.
++ *
++ * This file is part of libgit2, distributed under the GNU GPL v2 with
++ * a Linking Exception. For full terms see the included COPYING file.
++ */
++
++#include "streams/mbedtls.h"
++
++#ifdef GIT_MBEDTLS
++
++#include <ctype.h>
++
++#include "global.h"
++#include "stream.h"
++#include "streams/socket.h"
++#include "netops.h"
++#include "git2/transport.h"
++
++#ifdef GIT_CURL
++# include "streams/curl.h"
++#endif
++
++#include <mbedtls/ssl.h>
++#include <mbedtls/x509.h>
++#include <mbedtls/x509_crt.h>
++#include <mbedtls/error.h>
++
++mbedtls_ssl_config *git__ssl_conf;
++
++static int bio_read(void *b, unsigned char *buf, size_t len)
++{
++	git_stream *io = (git_stream *) b;
++	return (int) git_stream_read(io, buf, len);
++}
++
++static int bio_write(void *b, const unsigned char *buf, size_t len)
++{
++	git_stream *io = (git_stream *) b;
++	return (int) git_stream_write(io, (const char *)buf, len, 0);
++}
++
++static int ssl_set_error(mbedtls_ssl_context *ssl, int error)
++{
++	char errbuf[512];
++	int ret = -1;
++
++	assert(error != MBEDTLS_ERR_SSL_WANT_READ);
++	assert(error != MBEDTLS_ERR_SSL_WANT_WRITE);
++
++	if (error != 0)
++		mbedtls_strerror( error, errbuf, 512 );
++
++	switch(error) {
++		case 0:
++		giterr_set(GITERR_SSL, "SSL error: unknown error");
++		break;
++
++	case MBEDTLS_ERR_X509_CERT_VERIFY_FAILED:
++		giterr_set(GITERR_SSL, "SSL error: %x[%x] - %s", error, ssl->session_negotiate->verify_result, errbuf);
++		ret = GIT_ECERTIFICATE;
++		break;
++
++	default:
++		giterr_set(GITERR_SSL, "SSL error: %x - %s", error, errbuf);
++	}
++
++	return ret;
++}
++
++static int ssl_teardown(mbedtls_ssl_context *ssl)
++{
++	int ret = 0;
++
++	ret = mbedtls_ssl_close_notify(ssl);
++	if (ret < 0)
++		ret = ssl_set_error(ssl, ret);
++
++	mbedtls_ssl_free(ssl);
++	return ret;
++}
++
++static int verify_server_cert(mbedtls_ssl_context *ssl, const char *host)
++{
++	const mbedtls_x509_crt *cert;
++	int flags;
++	struct in6_addr addr6;
++	struct in_addr addr4;
++	void *addr;
++
++	if( ( flags = mbedtls_ssl_get_verify_result(ssl) ) != 0 )
++	{
++		char vrfy_buf[512];
++		mbedtls_x509_crt_verify_info( vrfy_buf, sizeof( vrfy_buf ), "  ! ", flags );
++		giterr_set(GITERR_SSL, "The SSL certificate is invalid: %s", vrfy_buf);
++		return GIT_ECERTIFICATE;
++	}
++
++	/* Try to parse the host as an IP address to see if it is */
++	if (p_inet_pton(AF_INET, host, &addr4)) {
++		addr = &addr4;
++	} else {
++		if(p_inet_pton(AF_INET6, host, &addr6)) {
++			addr = &addr6;
++		}
++	}
++
++	cert = mbedtls_ssl_get_peer_cert(ssl);
++	if (!cert) {
++		giterr_set(GITERR_SSL, "the server did not provide a certificate");
++		return -1;
++	}
++
++	/* Check the alternative names */
++	//TODO: cert->subject_alt_names
++
++	/* If no alternative names are available, check the common name */
++	/*TODO
++	mbedtls_x509_name peer_name = cert->subject;
++	if (peer_name == NULL)
++		goto on_error;
++	*/
++
++	return 0;
++
++on_error:
++	return ssl_set_error(ssl, 0);
++
++cert_fail_name:
++	giterr_set(GITERR_SSL, "hostname does not match certificate");
++	return GIT_ECERTIFICATE;
++}
++
++typedef struct {
++	git_stream parent;
++	git_stream *io;
++	bool connected;
++	char *host;
++	mbedtls_ssl_context *ssl;
++	git_cert_x509 cert_info;
++} mbedtls_stream;
++
++
++int mbedtls_connect(git_stream *stream)
++{
++	int ret;
++	mbedtls_stream *st = (mbedtls_stream *) stream;
++
++	if ((ret = git_stream_connect(st->io)) < 0)
++		return ret;
++
++	st->connected = true;
++
++	mbedtls_ssl_set_bio(st->ssl, st->io, bio_write, bio_read, NULL);
++
++	/* specify the host in case SNI is needed */
++#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
++	mbedtls_ssl_set_hostname(st->ssl, st->host);
++#endif
++
++	if ((ret = mbedtls_ssl_handshake(st->ssl)) != 0)
++		return ssl_set_error(st->ssl, ret);
++
++	return verify_server_cert(st->ssl, st->host);
++}
++
++int mbedtls_certificate(git_cert **out, git_stream *stream)
++{
++	unsigned char *encoded_cert;
++	mbedtls_stream *st = (mbedtls_stream *) stream;
++
++	const mbedtls_x509_crt *cert = mbedtls_ssl_get_peer_cert(st->ssl);
++	if (!cert) {
++		giterr_set(GITERR_SSL, "the server did not provide a certificate");
++		return -1;
++	}
++
++	/* Retrieve the length of the certificate first */
++	if (cert->raw.len == 0) {
++		giterr_set(GITERR_NET, "failed to retrieve certificate information");
++		return -1;
++	}
++
++	encoded_cert = git__malloc(cert->raw.len);
++	GITERR_CHECK_ALLOC(encoded_cert);
++	memcpy(encoded_cert, cert->raw.p, cert->raw.len);
++
++	st->cert_info.parent.cert_type = GIT_CERT_X509;
++	st->cert_info.data = encoded_cert;
++	st->cert_info.len = cert->raw.len;
++
++	*out = &st->cert_info.parent;
++
++	return 0;
++}
++
++static int mbedtls_set_proxy(git_stream *stream, const git_proxy_options *proxy_options)
++{
++	mbedtls_stream *st = (mbedtls_stream *) stream;
++
++	return git_stream_set_proxy(st->io, proxy_options);
++}
++
++ssize_t mbedtls_stream_write(git_stream *stream, const char *data, size_t len, int flags)
++{
++	mbedtls_stream *st = (mbedtls_stream *) stream;
++	int ret;
++
++	GIT_UNUSED(flags);
++
++	if ((ret = mbedtls_ssl_write(st->ssl, (const unsigned char *)data, len)) <= 0) {
++		return ssl_set_error(st->ssl, ret);
++	}
++
++	return ret;
++}
++
++ssize_t mbedtls_stream_read(git_stream *stream, void *data, size_t len)
++{
++	mbedtls_stream *st = (mbedtls_stream *) stream;
++	int ret;
++
++	if ((ret = mbedtls_ssl_read(st->ssl, (unsigned char *)data, len)) <= 0)
++		ssl_set_error(st->ssl, ret);
++
++	return ret;
++}
++
++int mbedtls_stream_close(git_stream *stream)
++{
++	mbedtls_stream *st = (mbedtls_stream *) stream;
++	int ret = 0;
++
++	if (st->connected && (ret = ssl_teardown(st->ssl)) != 0)
++		return -1;
++
++	st->connected = false;
++
++	return git_stream_close(st->io);
++}
++
++void mbedtls_stream_free(git_stream *stream)
++{
++	mbedtls_stream *st = (mbedtls_stream *) stream;
++
++	git__free(st->host);
++	git__free(st->cert_info.data);
++	git_stream_free(st->io);
++	git__free(st->ssl);
++	git__free(st);
++}
++
++int git_mbedtls_stream_new(git_stream **out, const char *host, const char *port)
++{
++	int error;
++	mbedtls_stream *st;
++
++	st = git__calloc(1, sizeof(mbedtls_stream));
++	GITERR_CHECK_ALLOC(st);
++
++#ifdef GIT_CURL
++	error = git_curl_stream_new(&st->io, host, port);
++#else
++	error = git_socket_stream_new(&st->io, host, port);
++#endif
++
++	if (error < 0)
++		goto out_err;
++
++	st->ssl = git__malloc(sizeof(mbedtls_ssl_context));
++	GITERR_CHECK_ALLOC(st->ssl);
++	mbedtls_ssl_init(st->ssl);
++	if (mbedtls_ssl_setup(st->ssl, git__ssl_conf)) {
++		giterr_set(GITERR_SSL, "failed to create ssl object");
++		error = -1;
++		goto out_err;
++	}
++
++	st->host = git__strdup(host);
++	GITERR_CHECK_ALLOC(st->host);
++
++	st->parent.version = GIT_STREAM_VERSION;
++	st->parent.encrypted = 1;
++	st->parent.proxy_support = git_stream_supports_proxy(st->io);
++	st->parent.connect = mbedtls_connect;
++	st->parent.certificate = mbedtls_certificate;
++	st->parent.set_proxy = mbedtls_set_proxy;
++	st->parent.read = mbedtls_stream_read;
++	st->parent.write = mbedtls_stream_write;
++	st->parent.close = mbedtls_stream_close;
++	st->parent.free = mbedtls_stream_free;
++
++	*out = (git_stream *) st;
++	return 0;
++
++out_err:
++	mbedtls_ssl_free(st->ssl);
++	git_stream_free(st->io);
++	git__free(st);
++
++	return error;
++}
++
++int git_mbedtls__set_cert_location(const char *file, const char *path)
++{
++	int ret = 0;
++	char errbuf[512];
++	if (!file) {
++		ret = mbedtls_x509_crt_parse_file(git__ssl_conf->ca_chain, file);
++	} else if (!path) {
++		ret = mbedtls_x509_crt_parse_path(git__ssl_conf->ca_chain, path);
++	}
++	if (ret != 0) {
++		mbedtls_strerror( ret, errbuf, 512 );
++		giterr_set(GITERR_NET, "SSL error: %d - %s", ret, errbuf);
++		return -1;
++	}
++	return 0;
++}
++
++#else
++
++#include "stream.h"
++
++int git_mbedtls_stream_new(git_stream **out, const char *host, const char *port)
++{
++	GIT_UNUSED(out);
++	GIT_UNUSED(host);
++	GIT_UNUSED(port);
++
++	giterr_set(GITERR_SSL, "mbedTLS is not supported in this version");
++	return -1;
++}
++
++int git_mbedtls__set_cert_location(const char *file, const char *path)
++{
++	GIT_UNUSED(file);
++	GIT_UNUSED(path);
++
++	giterr_set(GITERR_SSL, "mbedTLS is not supported in this version");
++	return -1;
++}
++
++#endif
+diff --git a/src/streams/mbedtls.h b/src/streams/mbedtls.h
+new file mode 100644
+index 0000000000..0572442014
+--- /dev/null
++++ b/src/streams/mbedtls.h
+@@ -0,0 +1,18 @@
++/*
++ * Copyright (C) the libgit2 contributors. All rights reserved.
++ *
++ * This file is part of libgit2, distributed under the GNU GPL v2 with
++ * a Linking Exception. For full terms see the included COPYING file.
++ */
++#ifndef INCLUDE_steams_mbedtls_h__
++#define INCLUDE_steams_mbedtls_h__
++
++#include "common.h"
++
++#include "git2/sys/stream.h"
++
++extern int git_mbedtls_stream_new(git_stream **out, const char *host, const char *port);
++
++extern int git_mbedtls__set_cert_location(const char *file, const char *path);
++
++#endif
+diff --git a/src/streams/tls.c b/src/streams/tls.c
+index d6ca7d40de..1bcb0d9841 100644
+--- a/src/streams/tls.c
++++ b/src/streams/tls.c
+@@ -9,6 +9,7 @@
+ 
+ #include "git2/errors.h"
+ 
++#include "streams/mbedtls.h"
+ #include "streams/openssl.h"
+ #include "streams/stransport.h"
+ 
+@@ -31,6 +32,8 @@ int git_tls_stream_new(git_stream **out, const char *host, const char *port)
+ 	return git_stransport_stream_new(out, host, port);
+ #elif defined(GIT_OPENSSL)
+ 	return git_openssl_stream_new(out, host, port);
++#elif defined(GIT_MBEDTLS)
++	return git_mbedtls_stream_new(out, host, port);
+ #else
+ 	GIT_UNUSED(out);
+ 	GIT_UNUSED(host);
+
+From 1a1875f3227c3edb6ae0d5da3a5ffe4699aae63b Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:13:58 +0200
+Subject: [PATCH 02/15] mbedtls: proper certificate verification
+
+---
+ src/streams/mbedtls.c | 76 +++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 50 insertions(+), 26 deletions(-)
+
+diff --git a/src/streams/mbedtls.c b/src/streams/mbedtls.c
+index fbef31e81d..ecf219412b 100644
+--- a/src/streams/mbedtls.c
++++ b/src/streams/mbedtls.c
+@@ -80,31 +80,33 @@ static int ssl_teardown(mbedtls_ssl_context *ssl)
+ 	return ret;
+ }
+ 
++static int check_host_name(const char *name, const char *host)
++{
++	if (!strcasecmp(name, host))
++		return 0;
++
++	if (gitno__match_host(name, host) < 0)
++		return -1;
++
++	return 0;
++}
++
+ static int verify_server_cert(mbedtls_ssl_context *ssl, const char *host)
+ {
+ 	const mbedtls_x509_crt *cert;
+-	int flags;
+-	struct in6_addr addr6;
+-	struct in_addr addr4;
+-	void *addr;
++	const mbedtls_x509_sequence *alts;
++	int ret, matched = -1;
++	size_t sn_size = 512;
++	char subject_name[sn_size], alt_name[sn_size];
++
+ 
+-	if( ( flags = mbedtls_ssl_get_verify_result(ssl) ) != 0 )
+-	{
++	if ((ret = mbedtls_ssl_get_verify_result(ssl)) != 0) {
+ 		char vrfy_buf[512];
+-		mbedtls_x509_crt_verify_info( vrfy_buf, sizeof( vrfy_buf ), "  ! ", flags );
++		mbedtls_x509_crt_verify_info( vrfy_buf, sizeof( vrfy_buf ), "  ! ", ret );
+ 		giterr_set(GITERR_SSL, "The SSL certificate is invalid: %s", vrfy_buf);
+ 		return GIT_ECERTIFICATE;
+ 	}
+ 
+-	/* Try to parse the host as an IP address to see if it is */
+-	if (p_inet_pton(AF_INET, host, &addr4)) {
+-		addr = &addr4;
+-	} else {
+-		if(p_inet_pton(AF_INET6, host, &addr6)) {
+-			addr = &addr6;
+-		}
+-	}
+-
+ 	cert = mbedtls_ssl_get_peer_cert(ssl);
+ 	if (!cert) {
+ 		giterr_set(GITERR_SSL, "the server did not provide a certificate");
+@@ -112,14 +114,39 @@ static int verify_server_cert(mbedtls_ssl_context *ssl, const char *host)
+ 	}
+ 
+ 	/* Check the alternative names */
+-	//TODO: cert->subject_alt_names
++	alts = &cert->subject_alt_names;
++	while (alts != NULL && matched != 1) {
++		// Buffer is too small
++		if( alts->buf.len >= sn_size )
++			goto on_error;
++
++		memcpy(alt_name, alts->buf.p, alts->buf.len);
++		alt_name[alts->buf.len] = '\0';
++
++		if (!memchr(alt_name, '\0', alts->buf.len)) {
++			if (check_host_name(alt_name, host) < 0)
++				matched = 0;
++			else
++				matched = 1;
++		}
++
++		alts = alts->next;
++	}
++	if (matched == 0)
++		goto cert_fail_name;
++
++	if (matched == 1)
++		return 0;
+ 
+ 	/* If no alternative names are available, check the common name */
+-	/*TODO
+-	mbedtls_x509_name peer_name = cert->subject;
+-	if (peer_name == NULL)
++	ret = mbedtls_x509_dn_gets(subject_name, sn_size, &cert->subject);
++	if (ret == 0)
+ 		goto on_error;
+-	*/
++	if (memchr(subject_name, '\0', ret))
++		goto cert_fail_name;
++
++	if (check_host_name(subject_name, host) < 0)
++		goto cert_fail_name;
+ 
+ 	return 0;
+ 
+@@ -151,12 +178,9 @@ int mbedtls_connect(git_stream *stream)
+ 
+ 	st->connected = true;
+ 
+-	mbedtls_ssl_set_bio(st->ssl, st->io, bio_write, bio_read, NULL);
+-
+-	/* specify the host in case SNI is needed */
+-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+ 	mbedtls_ssl_set_hostname(st->ssl, st->host);
+-#endif
++
++	mbedtls_ssl_set_bio(st->ssl, st->io, bio_write, bio_read, NULL);
+ 
+ 	if ((ret = mbedtls_ssl_handshake(st->ssl)) != 0)
+ 		return ssl_set_error(st->ssl, ret);
+
+From 6c6be3ce6ff23429089c0211870971b17246a992 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:13:59 +0200
+Subject: [PATCH 03/15] mbedtls: use libmbedcrypto for hashing
+
+---
+ CMakeLists.txt          |  2 +-
+ src/CMakeLists.txt      |  5 +++++
+ src/features.h.in       |  1 +
+ src/hash.h              |  2 ++
+ src/hash/hash_mbedtls.c | 38 ++++++++++++++++++++++++++++++++++++++
+ src/hash/hash_mbedtls.h | 20 ++++++++++++++++++++
+ 6 files changed, 67 insertions(+), 1 deletion(-)
+ create mode 100644 src/hash/hash_mbedtls.c
+ create mode 100644 src/hash/hash_mbedtls.h
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2ca5354a7f..9176eee04a 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -48,7 +48,7 @@ OPTION( PROFILE				"Generate profiling information"		OFF )
+ OPTION( ENABLE_TRACE		"Enables tracing support"				OFF )
+ OPTION( LIBGIT2_FILENAME	"Name of the produced binary"			OFF )
+ 
+-SET(SHA1_BACKEND "CollisionDetection" CACHE STRING "Backend to use for SHA1. One of Generic, OpenSSL, Win32, CommonCrypto, CollisionDetection. ")
++SET(SHA1_BACKEND "CollisionDetection" CACHE STRING "Backend to use for SHA1. One of Generic, OpenSSL, Win32, CommonCrypto, mbedTLS, CollisionDetection. ")
+ OPTION( USE_SSH				"Link with libssh to enable SSH support" ON )
+ OPTION( USE_HTTPS			"Enable HTTPS support. Can be set to a specific backend"	ON )
+ OPTION( USE_GSSAPI			"Link with libgssapi for SPNEGO auth"   OFF )
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index cc6f5c961e..027e76a324 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -243,6 +243,11 @@ ELSEIF(SHA1_BACKEND STREQUAL "Win32")
+ ELSEIF(SHA1_BACKEND STREQUAL "CommonCrypto")
+ 	ADD_FEATURE_INFO(SHA ON "using CommonCrypto")
+ 	SET(GIT_SHA1_COMMON_CRYPTO 1)
++ELSEIF (SHA1_BACKEND STREQUAL "mbedTLS")
++	ADD_FEATURE_INFO(SHA ON "using mbedTLS")
++	SET(GIT_SHA1_MBEDTLS 1)
++	FILE(GLOB SRC_SHA1 src/hash/hash_mbedtls.c)
++	LIST(APPEND LIBGIT2_PC_REQUIRES "mbedtls")
+ ELSE()
+ 	MESSAGE(FATAL_ERROR "Asked for unknown SHA1 backend ${SHA1_BACKEND}")
+ ENDIF()
+diff --git a/src/features.h.in b/src/features.h.in
+index f7f162c2a7..f414c58433 100644
+--- a/src/features.h.in
++++ b/src/features.h.in
+@@ -33,5 +33,6 @@
+ #cmakedefine GIT_SHA1_WIN32 1
+ #cmakedefine GIT_SHA1_COMMON_CRYPTO 1
+ #cmakedefine GIT_SHA1_OPENSSL 1
++#cmakedefine GIT_SHA1_MBEDTLS 1
+ 
+ #endif
+diff --git a/src/hash.h b/src/hash.h
+index 31eaf88897..93765adf33 100644
+--- a/src/hash.h
++++ b/src/hash.h
+@@ -26,6 +26,8 @@ void git_hash_ctx_cleanup(git_hash_ctx *ctx);
+ # include "hash/hash_openssl.h"
+ #elif defined(GIT_SHA1_WIN32)
+ # include "hash/hash_win32.h"
++#elif defined(GIT_SHA1_MBEDTLS)
++# include "hash/hash_mbedtls.h"
+ #else
+ # include "hash/hash_generic.h"
+ #endif
+diff --git a/src/hash/hash_mbedtls.c b/src/hash/hash_mbedtls.c
+new file mode 100644
+index 0000000000..a19d763082
+--- /dev/null
++++ b/src/hash/hash_mbedtls.c
+@@ -0,0 +1,38 @@
++/*
++ * Copyright (C) the libgit2 contributors. All rights reserved.
++ *
++ * This file is part of libgit2, distributed under the GNU GPL v2 with
++ * a Linking Exception. For full terms see the included COPYING file.
++ */
++
++#include "common.h"
++#include "hash.h"
++#include "hash/hash_mbedtls.h"
++
++void git_hash_ctx_cleanup(git_hash_ctx *ctx)
++{
++    assert(ctx);
++    mbedtls_sha1_free(&ctx->c);
++}
++
++int git_hash_init(git_hash_ctx *ctx)
++{
++    assert(ctx);
++    mbedtls_sha1_init(&ctx->c);
++    mbedtls_sha1_starts(&ctx->c);
++    return 0;
++}
++
++int git_hash_update(git_hash_ctx *ctx, const void *data, size_t len)
++{
++    assert(ctx);
++    mbedtls_sha1_update(&ctx->c, data, len);
++    return 0;
++}
++
++int git_hash_final(git_oid *out, git_hash_ctx *ctx)
++{
++    assert(ctx);
++    mbedtls_sha1_finish(&ctx->c, out->id);
++    return 0;
++}
+diff --git a/src/hash/hash_mbedtls.h b/src/hash/hash_mbedtls.h
+new file mode 100644
+index 0000000000..24196c5bff
+--- /dev/null
++++ b/src/hash/hash_mbedtls.h
+@@ -0,0 +1,20 @@
++/*
++ * Copyright (C) the libgit2 contributors. All rights reserved.
++ *
++ * This file is part of libgit2, distributed under the GNU GPL v2 with
++ * a Linking Exception. For full terms see the included COPYING file.
++ */
++
++#ifndef INCLUDE_hash_mbedtld_h__
++#define INCLUDE_hash_mbedtld_h__
++
++#include <mbedtls/sha1.h>
++
++struct git_hash_ctx {
++    mbedtls_sha1_context c;
++};
++
++#define git_hash_global_init() 0
++#define git_hash_ctx_init(ctx) git_hash_init(ctx)
++
++#endif /* INCLUDE_hash_mbedtld_h__ */
+
+From 60e1ad927b7f64ad33681fc162b512e2cf12b5b8 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:01 +0200
+Subject: [PATCH 04/15] mbedtls: add global initialization
+
+---
+ src/global.c          |   4 +-
+ src/streams/mbedtls.c | 100 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/streams/mbedtls.h |   2 +
+ 3 files changed, 102 insertions(+), 4 deletions(-)
+
+diff --git a/src/global.c b/src/global.c
+index 2f9b45bcda..02aedf57d1 100644
+--- a/src/global.c
++++ b/src/global.c
+@@ -12,6 +12,7 @@
+ #include "filter.h"
+ #include "merge_driver.h"
+ #include "streams/curl.h"
++#include "streams/mbedtls.h"
+ #include "streams/openssl.h"
+ #include "thread-utils.h"
+ #include "git2/global.h"
+@@ -65,7 +66,8 @@ static int init_common(void)
+ 		(ret = git_merge_driver_global_init()) == 0 &&
+ 		(ret = git_transport_ssh_global_init()) == 0 &&
+ 		(ret = git_openssl_stream_global_init()) == 0 &&
+-		(ret = git_curl_stream_global_init()) == 0)
++		(ret = git_curl_stream_global_init()) == 0 &&
++		(ret = git_mbedtls_stream_global_init()) == 0)
+ 		ret = git_mwindow_global_init();
+ 
+ 	GIT_MEMORY_BARRIER;
+diff --git a/src/streams/mbedtls.c b/src/streams/mbedtls.c
+index ecf219412b..ea0989caaf 100644
+--- a/src/streams/mbedtls.c
++++ b/src/streams/mbedtls.c
+@@ -21,10 +21,99 @@
+ # include "streams/curl.h"
+ #endif
+ 
++#include <mbedtls/config.h>
+ #include <mbedtls/ssl.h>
+-#include <mbedtls/x509.h>
+-#include <mbedtls/x509_crt.h>
+-#include <mbedtls/error.h>
++#include <mbedtls/entropy.h>
++#include <mbedtls/ctr_drbg.h>
++
++#define CRT_LOC "/etc/ssl/certs"
++
++mbedtls_ssl_config *git__ssl_conf;
++mbedtls_entropy_context *mbedtls_entropy;
++
++/**
++ * This function aims to clean-up the SSL context which
++ * we allocated.
++ */
++static void shutdown_ssl(void)
++{
++	if (git__ssl_conf) {
++		mbedtls_x509_crt_free(git__ssl_conf->ca_chain);
++		git__free(git__ssl_conf->ca_chain);
++		mbedtls_ctr_drbg_free(git__ssl_conf->p_rng);
++		git__free(git__ssl_conf->p_rng);
++		mbedtls_ssl_config_free(git__ssl_conf);
++		git__free(git__ssl_conf);
++		git__ssl_conf = NULL;
++	}
++	if (mbedtls_entropy) {
++		mbedtls_entropy_free(mbedtls_entropy);
++		git__free(mbedtls_entropy);
++		mbedtls_entropy = NULL;
++	}
++}
++
++int git_mbedtls_stream_global_init(void)
++{
++	int ret;
++	mbedtls_ctr_drbg_context *ctr_drbg = NULL;
++	mbedtls_x509_crt *cacert = NULL;
++
++	git__ssl_conf = git__malloc(sizeof(mbedtls_ssl_config));
++	mbedtls_ssl_config_init(git__ssl_conf);
++	if (mbedtls_ssl_config_defaults(git__ssl_conf,
++		                            MBEDTLS_SSL_IS_CLIENT,
++		                            MBEDTLS_SSL_TRANSPORT_STREAM,
++		                            MBEDTLS_SSL_PRESET_DEFAULT) != 0) {
++		giterr_set(GITERR_SSL, "failed to initialize mbedTLS");
++		goto cleanup;
++	}
++
++	/* configure TLSv1 */
++	mbedtls_ssl_conf_min_version(git__ssl_conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_0);
++	mbedtls_ssl_conf_authmode(git__ssl_conf, MBEDTLS_SSL_VERIFY_REQUIRED);
++
++	/* Seeding the random number generator */
++	mbedtls_entropy = git__malloc(sizeof(mbedtls_entropy_context));
++	mbedtls_entropy_init(mbedtls_entropy);
++
++	ctr_drbg = git__malloc(sizeof(mbedtls_ctr_drbg_context));
++	mbedtls_ctr_drbg_init(ctr_drbg);
++	if (mbedtls_ctr_drbg_seed(ctr_drbg,
++		                      mbedtls_entropy_func,
++		                      mbedtls_entropy, NULL, 0) != 0) {
++		giterr_set(GITERR_SSL, "failed to initialize mbedTLS entropy pool");
++		goto cleanup;
++	}
++
++	mbedtls_ssl_conf_rng(git__ssl_conf, mbedtls_ctr_drbg_random, ctr_drbg);
++
++	// set root certificates
++	cacert = git__malloc(sizeof(mbedtls_x509_crt));
++	mbedtls_x509_crt_init(cacert);
++	ret = mbedtls_x509_crt_parse_path(cacert, CRT_LOC);
++	if (ret) {
++		giterr_set(GITERR_SSL, "failed to load CA certificates: %d", ret);
++		goto cleanup;
++	}
++
++	mbedtls_ssl_conf_ca_chain(git__ssl_conf, cacert, NULL);
++
++	git__on_shutdown(shutdown_ssl);
++
++	return 0;
++
++cleanup:
++	mbedtls_x509_crt_free(cacert);
++	git__free(cacert);
++	mbedtls_ctr_drbg_free(ctr_drbg);
++	git__free(ctr_drbg);
++	mbedtls_ssl_config_free(git__ssl_conf);
++	git__free(git__ssl_conf);
++	git__ssl_conf = NULL;
++
++	return -1;
++}
+ 
+ mbedtls_ssl_config *git__ssl_conf;
+ 
+@@ -346,6 +435,11 @@ int git_mbedtls__set_cert_location(const char *file, const char *path)
+ 
+ #include "stream.h"
+ 
++int git_mbedtls_stream_global_init(void)
++{
++	return 0;
++}
++
+ int git_mbedtls_stream_new(git_stream **out, const char *host, const char *port)
+ {
+ 	GIT_UNUSED(out);
+diff --git a/src/streams/mbedtls.h b/src/streams/mbedtls.h
+index 0572442014..8dab2b6c99 100644
+--- a/src/streams/mbedtls.h
++++ b/src/streams/mbedtls.h
+@@ -11,6 +11,8 @@
+ 
+ #include "git2/sys/stream.h"
+ 
++extern int git_mbedtls_stream_global_init(void);
++
+ extern int git_mbedtls_stream_new(git_stream **out, const char *host, const char *port);
+ 
+ extern int git_mbedtls__set_cert_location(const char *file, const char *path);
+
+From 2419cccd16ae6585e2b58360dc6a53304a3baee8 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:02 +0200
+Subject: [PATCH 05/15] mbedtls: default cipher list support
+
+---
+ src/settings.c        |  2 +-
+ src/streams/mbedtls.c | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/settings.c b/src/settings.c
+index 13ae6d4892..1195075ee9 100644
+--- a/src/settings.c
++++ b/src/settings.c
+@@ -210,7 +210,7 @@ int git_libgit2_opts(int key, ...)
+ 		break;
+ 
+ 	case GIT_OPT_SET_SSL_CIPHERS:
+-#ifdef GIT_OPENSSL
++#if (GIT_OPENSSL || GIT_MBEDTLS)
+ 		{
+ 			git__free(git__ssl_ciphers);
+ 			git__ssl_ciphers = git__strdup(va_arg(ap, const char *));
+diff --git a/src/streams/mbedtls.c b/src/streams/mbedtls.c
+index ea0989caaf..42ac8aa174 100644
+--- a/src/streams/mbedtls.c
++++ b/src/streams/mbedtls.c
+@@ -16,6 +16,7 @@
+ #include "streams/socket.h"
+ #include "netops.h"
+ #include "git2/transport.h"
++#include "util.h"
+ 
+ #ifdef GIT_CURL
+ # include "streams/curl.h"
+@@ -31,6 +32,9 @@
+ mbedtls_ssl_config *git__ssl_conf;
+ mbedtls_entropy_context *mbedtls_entropy;
+ 
++#define GIT_SSL_DEFAULT_CIPHERS "TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384:TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384:TLS-DHE-RSA-WITH-AES-128-GCM-SHA256:TLS-DHE-DSS-WITH-AES-128-GCM-SHA256:TLS-DHE-RSA-WITH-AES-256-GCM-SHA384:TLS-DHE-DSS-WITH-AES-256-GCM-SHA384:TLS-ECDHE-ECDSA-WITH-AES-128-CBC-SHA256:TLS-ECDHE-RSA-WITH-AES-128-CBC-SHA256:TLS-ECDHE-ECDSA-WITH-AES-128-CBC-SHA:TLS-ECDHE-RSA-WITH-AES-128-CBC-SHA:TLS-ECDHE-ECDSA-WITH-AES-256-CBC-SHA384:TLS-ECDHE-RSA-WITH-AES-256-CBC-SHA384:TLS-ECDHE-ECDSA-WITH-AES-256-CBC-SHA:TLS-ECDHE-RSA-WITH-AES-256-CBC-SHA:TLS-DHE-RSA-WITH-AES-128-CBC-SHA256:TLS-DHE-RSA-WITH-AES-256-CBC-SHA256:TLS-DHE-RSA-WITH-AES-128-CBC-SHA:TLS-DHE-RSA-WITH-AES-256-CBC-SHA:TLS-DHE-DSS-WITH-AES-128-CBC-SHA256:TLS-DHE-DSS-WITH-AES-256-CBC-SHA256:TLS-DHE-DSS-WITH-AES-128-CBC-SHA:TLS-DHE-DSS-WITH-AES-256-CBC-SHA:TLS-RSA-WITH-AES-128-GCM-SHA256:TLS-RSA-WITH-AES-256-GCM-SHA384:TLS-RSA-WITH-AES-128-CBC-SHA256:TLS-RSA-WITH-AES-256-CBC-SHA256:TLS-RSA-WITH-AES-128-CBC-SHA:TLS-RSA-WITH-AES-256-CBC-SHA"
++#define GIT_SSL_DEFAULT_CIPHERS_COUNT 30
++
+ /**
+  * This function aims to clean-up the SSL context which
+  * we allocated.
+@@ -57,6 +61,13 @@ int git_mbedtls_stream_global_init(void)
+ {
+ 	int ret;
+ 	mbedtls_ctr_drbg_context *ctr_drbg = NULL;
++
++	int *ciphers_list = NULL;
++	int ciphers_known = 0;
++	char *cipher_name = NULL;
++	char *cipher_string = NULL;
++	char *cipher_string_tmp = NULL;
++
+ 	mbedtls_x509_crt *cacert = NULL;
+ 
+ 	git__ssl_conf = git__malloc(sizeof(mbedtls_ssl_config));
+@@ -73,6 +84,24 @@ int git_mbedtls_stream_global_init(void)
+ 	mbedtls_ssl_conf_min_version(git__ssl_conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_0);
+ 	mbedtls_ssl_conf_authmode(git__ssl_conf, MBEDTLS_SSL_VERIFY_REQUIRED);
+ 
++	/* set the list of allowed ciphersuites */
++	ciphers_list = calloc(GIT_SSL_DEFAULT_CIPHERS_COUNT, sizeof(int));
++	ciphers_known = 0;
++	cipher_string = cipher_string_tmp = git__strdup(GIT_SSL_DEFAULT_CIPHERS);
++	while ((cipher_name = git__strtok(&cipher_string_tmp, ":")) != NULL) {
++		int cipherid = mbedtls_ssl_get_ciphersuite_id(cipher_name);
++		if (cipherid == 0) continue;
++
++		ciphers_list[ciphers_known++] = cipherid;
++	}
++	git__free(cipher_string);
++
++	if (!ciphers_known) {
++		giterr_set(GITERR_SSL, "no cipher could be enabled");
++		goto cleanup;
++	}
++	mbedtls_ssl_conf_ciphersuites(git__ssl_conf, ciphers_list);
++
+ 	/* Seeding the random number generator */
+ 	mbedtls_entropy = git__malloc(sizeof(mbedtls_entropy_context));
+ 	mbedtls_entropy_init(mbedtls_entropy);
+
+From ec79b0fdd6236647349a67010f1a8fdcc5edfae7 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:04 +0200
+Subject: [PATCH 06/15] mbedtls: fix libgit2 hanging due to incomplete writes
+
+---
+ src/streams/mbedtls.c | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/streams/mbedtls.c b/src/streams/mbedtls.c
+index 42ac8aa174..fa7d31e71a 100644
+--- a/src/streams/mbedtls.c
++++ b/src/streams/mbedtls.c
+@@ -345,16 +345,20 @@ static int mbedtls_set_proxy(git_stream *stream, const git_proxy_options *proxy_
+ 
+ ssize_t mbedtls_stream_write(git_stream *stream, const char *data, size_t len, int flags)
+ {
++	size_t read = 0;
+ 	mbedtls_stream *st = (mbedtls_stream *) stream;
+-	int ret;
+ 
+ 	GIT_UNUSED(flags);
+ 
+-	if ((ret = mbedtls_ssl_write(st->ssl, (const unsigned char *)data, len)) <= 0) {
+-		return ssl_set_error(st->ssl, ret);
+-	}
++	do {
++		int error = mbedtls_ssl_write(st->ssl, (const unsigned char *)data + read, len - read);
++		if (error <= 0) {
++			return ssl_set_error(st->ssl, error);
++		}
++		read += error;
++	} while (read < len);
+ 
+-	return ret;
++	return read;
+ }
+ 
+ ssize_t mbedtls_stream_read(git_stream *stream, void *data, size_t len)
+
+From 262dfcf0bf7416ddac5012737dfa1686e013824f Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:05 +0200
+Subject: [PATCH 07/15] mbedtls: enable Travis CI tests
+
+---
+ .travis.yml                  | 10 ++++++++++
+ script/install-deps-linux.sh | 13 +++++++++++++
+ 2 files changed, 23 insertions(+)
+ create mode 100755 script/install-deps-linux.sh
+
+diff --git a/.travis.yml b/.travis.yml
+index a4c8e91dfb..b5f1c6ff68 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -55,6 +55,16 @@ matrix:
+          OPTIONS="-DBUILD_CLAR=ON -DBUILD_EXAMPLES=OFF -DDEBUG_POOL=ON -DCMAKE_BUILD_TYPE=Debug"
+      os: linux
+      dist: trusty
++   - compiler: gcc
++     env:
++         MBEDTLS=1
++         OPTIONS="-DTHREADSAFE=ON -DCMAKE_BUILD_TYPE=Release -DUSE_HTTPS=mbedTLS -DMBEDTLS_ROOT_DIR=../deps/mbedtls"
++     os: linux
++   - compiler: gcc
++     env:
++         MBEDTLS=1
++         OPTIONS="-DTHREADSAFE=OFF -DBUILD_EXAMPLES=ON -DUSE_HTTPS=mbedTLS -DMBEDTLS_ROOT_DIR=../deps/mbedtls"
++     os: linux
+  allow_failures:
+    - env: COVERITY=1
+ 
+diff --git a/script/install-deps-linux.sh b/script/install-deps-linux.sh
+new file mode 100755
+index 0000000000..c084ca2e7c
+--- /dev/null
++++ b/script/install-deps-linux.sh
+@@ -0,0 +1,13 @@
++#!/bin/sh
++
++set -x
++
++if [ "$MBEDTLS" ]; then
++  git clone https://github.com/ARMmbed/mbedtls.git ./deps/mbedtls
++  cd ./deps/mbedtls
++  git checkout mbedtls-2.6.1
++  cmake -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DUSE_SHARED_MBEDTLS_LIBRARY=ON -DUSE_STATIC_MBEDTLS_LIBRARY=OFF .
++  cmake --build .
++
++  echo "mbedTLS built in `pwd`"
++fi
+
+From 4165bb7f4b767801c2142ec521e275f6560197a5 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:06 +0200
+Subject: [PATCH 08/15] mbedtls: use our own certificate validation
+
+Otherwise REQUIRED means that `git_stream_certificate` will always error.
+We're doing the mbedtls check in verify_server_cert though.
+---
+ src/streams/mbedtls.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/streams/mbedtls.c b/src/streams/mbedtls.c
+index fa7d31e71a..b2f02ccd3f 100644
+--- a/src/streams/mbedtls.c
++++ b/src/streams/mbedtls.c
+@@ -82,7 +82,11 @@ int git_mbedtls_stream_global_init(void)
+ 
+ 	/* configure TLSv1 */
+ 	mbedtls_ssl_conf_min_version(git__ssl_conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_0);
+-	mbedtls_ssl_conf_authmode(git__ssl_conf, MBEDTLS_SSL_VERIFY_REQUIRED);
++
++	/* verify_server_cert is responsible for making the check.
++	 * OPTIONAL because REQUIRED drops the certificate as soon as the check
++	 * is made, so we can never see the certificate and override it. */
++	mbedtls_ssl_conf_authmode(git__ssl_conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+ 
+ 	/* set the list of allowed ciphersuites */
+ 	ciphers_list = calloc(GIT_SSL_DEFAULT_CIPHERS_COUNT, sizeof(int));
+
+From 1edde0bcea160f5629d733b1aae26a1fa8215177 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:08 +0200
+Subject: [PATCH 09/15] mbedtls: use mbedTLS certificate verification
+
+Taken from https://github.com/JuliaLang/julia/blob/8d47a314537779c8fb86642c54925613628a91b0/deps/patches/libgit2-mbedtls-verify.patch, with some modifications.
+---
+ src/streams/mbedtls.c | 75 +++++----------------------------------------------
+ 1 file changed, 6 insertions(+), 69 deletions(-)
+
+diff --git a/src/streams/mbedtls.c b/src/streams/mbedtls.c
+index b2f02ccd3f..ea96ae3de2 100644
+--- a/src/streams/mbedtls.c
++++ b/src/streams/mbedtls.c
+@@ -202,82 +202,19 @@ static int ssl_teardown(mbedtls_ssl_context *ssl)
+ 	return ret;
+ }
+ 
+-static int check_host_name(const char *name, const char *host)
++static int verify_server_cert(mbedtls_ssl_context *ssl)
+ {
+-	if (!strcasecmp(name, host))
+-		return 0;
+-
+-	if (gitno__match_host(name, host) < 0)
+-		return -1;
+-
+-	return 0;
+-}
+-
+-static int verify_server_cert(mbedtls_ssl_context *ssl, const char *host)
+-{
+-	const mbedtls_x509_crt *cert;
+-	const mbedtls_x509_sequence *alts;
+-	int ret, matched = -1;
+-	size_t sn_size = 512;
+-	char subject_name[sn_size], alt_name[sn_size];
+-
++	int ret = -1;
+ 
+ 	if ((ret = mbedtls_ssl_get_verify_result(ssl)) != 0) {
+ 		char vrfy_buf[512];
+-		mbedtls_x509_crt_verify_info( vrfy_buf, sizeof( vrfy_buf ), "  ! ", ret );
+-		giterr_set(GITERR_SSL, "The SSL certificate is invalid: %s", vrfy_buf);
++		int len = mbedtls_x509_crt_verify_info(vrfy_buf, sizeof(vrfy_buf), "", ret);
++		if (len >= 1) vrfy_buf[len - 1] = '\0'; /* Remove trailing \n */
++		giterr_set(GITERR_SSL, "the SSL certificate is invalid: %x - %s", ret, vrfy_buf);
+ 		return GIT_ECERTIFICATE;
+ 	}
+ 
+-	cert = mbedtls_ssl_get_peer_cert(ssl);
+-	if (!cert) {
+-		giterr_set(GITERR_SSL, "the server did not provide a certificate");
+-		return -1;
+-	}
+-
+-	/* Check the alternative names */
+-	alts = &cert->subject_alt_names;
+-	while (alts != NULL && matched != 1) {
+-		// Buffer is too small
+-		if( alts->buf.len >= sn_size )
+-			goto on_error;
+-
+-		memcpy(alt_name, alts->buf.p, alts->buf.len);
+-		alt_name[alts->buf.len] = '\0';
+-
+-		if (!memchr(alt_name, '\0', alts->buf.len)) {
+-			if (check_host_name(alt_name, host) < 0)
+-				matched = 0;
+-			else
+-				matched = 1;
+-		}
+-
+-		alts = alts->next;
+-	}
+-	if (matched == 0)
+-		goto cert_fail_name;
+-
+-	if (matched == 1)
+-		return 0;
+-
+-	/* If no alternative names are available, check the common name */
+-	ret = mbedtls_x509_dn_gets(subject_name, sn_size, &cert->subject);
+-	if (ret == 0)
+-		goto on_error;
+-	if (memchr(subject_name, '\0', ret))
+-		goto cert_fail_name;
+-
+-	if (check_host_name(subject_name, host) < 0)
+-		goto cert_fail_name;
+-
+ 	return 0;
+-
+-on_error:
+-	return ssl_set_error(ssl, 0);
+-
+-cert_fail_name:
+-	giterr_set(GITERR_SSL, "hostname does not match certificate");
+-	return GIT_ECERTIFICATE;
+ }
+ 
+ typedef struct {
+@@ -307,7 +244,7 @@ int mbedtls_connect(git_stream *stream)
+ 	if ((ret = mbedtls_ssl_handshake(st->ssl)) != 0)
+ 		return ssl_set_error(st->ssl, ret);
+ 
+-	return verify_server_cert(st->ssl, st->host);
++	return verify_server_cert(st->ssl);
+ }
+ 
+ int mbedtls_certificate(git_cert **out, git_stream *stream)
+
+From 382ed1e873da51cb411bd8842cc160fe4d67a666 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:09 +0200
+Subject: [PATCH 10/15] mbedtls: load default CA certificates
+
+---
+ src/CMakeLists.txt    | 37 +++++++++++++++++++++++++++++++
+ src/settings.c        |  5 ++++-
+ src/streams/mbedtls.c | 60 ++++++++++++++++++++++++++++++++-------------------
+ src/streams/mbedtls.h |  2 +-
+ 4 files changed, 80 insertions(+), 24 deletions(-)
+
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 027e76a324..fa86d9fb44 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -193,6 +193,43 @@ IF (USE_HTTPS)
+ 			MESSAGE(FATAL_ERROR "Asked for mbedTLS backend, but it wasn't found")
+ 		ENDIF()
+ 
++		IF(NOT CERT_LOCATION)
++			MESSAGE("Auto-detecting default certificates location")
++			IF(CMAKE_SYSTEM_NAME MATCHES Darwin)
++				# Check for an Homebrew installation
++				SET(OPENSSL_CMD "/usr/local/opt/openssl/bin/openssl")
++			ELSE()
++				SET(OPENSSL_CMD "openssl")
++			ENDIF()
++			EXECUTE_PROCESS(COMMAND ${OPENSSL_CMD} version -d OUTPUT_VARIABLE OPENSSL_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
++			IF(OPENSSL_DIR)
++				STRING(REGEX REPLACE "^OPENSSLDIR: \"(.*)\"$" "\\1/" OPENSSL_DIR ${OPENSSL_DIR})
++
++				SET(OPENSSL_CA_LOCATIONS
++					"ca-bundle.pem"             # OpenSUSE Leap 42.1
++					"cert.pem"                  # Ubuntu 14.04, FreeBSD
++					"certs/ca-certificates.crt" # Ubuntu 16.04
++					"certs/ca.pem"              # Debian 7
++				)
++				FOREACH(SUFFIX IN LISTS OPENSSL_CA_LOCATIONS)
++					SET(LOC "${OPENSSL_DIR}${SUFFIX}")
++					IF(NOT CERT_LOCATION AND EXISTS "${OPENSSL_DIR}${SUFFIX}")
++						SET(CERT_LOCATION ${LOC})
++					ENDIF()
++				ENDFOREACH()
++			ELSE()
++				MESSAGE("Unable to find OpenSSL executable. Please provide default certificate location via CERT_LOCATION")
++			ENDIF()
++		ENDIF()
++
++		IF(CERT_LOCATION)
++			IF(NOT EXISTS ${CERT_LOCATION})
++				MESSAGE(FATAL_ERROR "Cannot use CERT_LOCATION=${CERT_LOCATION} as it doesn't exist")
++			ENDIF()
++			ADD_FEATURE_INFO(CERT_LOCATION ON "using certificates from ${CERT_LOCATION}")
++			ADD_DEFINITIONS(-DGIT_DEFAULT_CERT_LOCATION="${CERT_LOCATION}")
++		ENDIF()
++
+ 		SET(GIT_MBEDTLS 1)
+ 		LIST(APPEND LIBGIT2_INCLUDES ${MBEDTLS_INCLUDE_DIR})
+ 		LIST(APPEND LIBGIT2_LIBS ${MBEDTLS_LIBRARIES})
+diff --git a/src/settings.c b/src/settings.c
+index 1195075ee9..f6bc5b270a 100644
+--- a/src/settings.c
++++ b/src/settings.c
+@@ -184,7 +184,10 @@ int git_libgit2_opts(int key, ...)
+ 		{
+ 			const char *file = va_arg(ap, const char *);
+ 			const char *path = va_arg(ap, const char *);
+-			error = git_mbedtls__set_cert_location(file, path);
++			if (file)
++				error = git_mbedtls__set_cert_location(file, 0);
++			if (error && path)
++				error = git_mbedtls__set_cert_location(path, 1);
+ 		}
+ #else
+ 		giterr_set(GITERR_SSL, "TLS backend doesn't support certificate locations");
+diff --git a/src/streams/mbedtls.c b/src/streams/mbedtls.c
+index ea96ae3de2..d134e865f6 100644
+--- a/src/streams/mbedtls.c
++++ b/src/streams/mbedtls.c
+@@ -22,13 +22,16 @@
+ # include "streams/curl.h"
+ #endif
+ 
++#ifndef GIT_DEFAULT_CERT_LOCATION
++#define GIT_DEFAULT_CERT_LOCATION NULL
++#endif
++
+ #include <mbedtls/config.h>
+ #include <mbedtls/ssl.h>
++#include <mbedtls/error.h>
+ #include <mbedtls/entropy.h>
+ #include <mbedtls/ctr_drbg.h>
+ 
+-#define CRT_LOC "/etc/ssl/certs"
+-
+ mbedtls_ssl_config *git__ssl_conf;
+ mbedtls_entropy_context *mbedtls_entropy;
+ 
+@@ -57,9 +60,13 @@ static void shutdown_ssl(void)
+ 	}
+ }
+ 
++int git_mbedtls__set_cert_location(const char *path, int is_dir);
++
+ int git_mbedtls_stream_global_init(void)
+ {
+-	int ret;
++	int loaded = 0;
++	char *crtpath = GIT_DEFAULT_CERT_LOCATION;
++	struct stat statbuf;
+ 	mbedtls_ctr_drbg_context *ctr_drbg = NULL;
+ 
+ 	int *ciphers_list = NULL;
+@@ -121,16 +128,11 @@ int git_mbedtls_stream_global_init(void)
+ 
+ 	mbedtls_ssl_conf_rng(git__ssl_conf, mbedtls_ctr_drbg_random, ctr_drbg);
+ 
+-	// set root certificates
+-	cacert = git__malloc(sizeof(mbedtls_x509_crt));
+-	mbedtls_x509_crt_init(cacert);
+-	ret = mbedtls_x509_crt_parse_path(cacert, CRT_LOC);
+-	if (ret) {
+-		giterr_set(GITERR_SSL, "failed to load CA certificates: %d", ret);
+-		goto cleanup;
+-	}
+-
+-	mbedtls_ssl_conf_ca_chain(git__ssl_conf, cacert, NULL);
++	/* load default certificates */
++	if (crtpath != NULL && stat(crtpath, &statbuf) == 0 && S_ISREG(statbuf.st_mode))
++		loaded = (git_mbedtls__set_cert_location(crtpath, 0) == 0);
++	if (!loaded && crtpath != NULL && stat(crtpath, &statbuf) == 0 && S_ISDIR(statbuf.st_mode))
++		loaded = (git_mbedtls__set_cert_location(crtpath, 1) == 0);
+ 
+ 	git__on_shutdown(shutdown_ssl);
+ 
+@@ -388,20 +390,34 @@ int git_mbedtls_stream_new(git_stream **out, const char *host, const char *port)
+ 	return error;
+ }
+ 
+-int git_mbedtls__set_cert_location(const char *file, const char *path)
++int git_mbedtls__set_cert_location(const char *path, int is_dir)
+ {
+ 	int ret = 0;
+ 	char errbuf[512];
+-	if (!file) {
+-		ret = mbedtls_x509_crt_parse_file(git__ssl_conf->ca_chain, file);
+-	} else if (!path) {
+-		ret = mbedtls_x509_crt_parse_path(git__ssl_conf->ca_chain, path);
++	mbedtls_x509_crt *cacert;
++
++	assert(path != NULL);
++
++	cacert = git__malloc(sizeof(mbedtls_x509_crt));
++	mbedtls_x509_crt_init(cacert);
++	if (is_dir) {
++		ret = mbedtls_x509_crt_parse_path(cacert, path);
++	} else {
++		ret = mbedtls_x509_crt_parse_file(cacert, path);
+ 	}
+-	if (ret != 0) {
++	/* mbedtls_x509_crt_parse_path returns the number of invalid certs on success */
++	if (ret < 0) {
++		mbedtls_x509_crt_free(cacert);
++		git__free(cacert);
+ 		mbedtls_strerror( ret, errbuf, 512 );
+-		giterr_set(GITERR_NET, "SSL error: %d - %s", ret, errbuf);
++		giterr_set(GITERR_SSL, "failed to load CA certificates : %s (%d)", errbuf, ret);
+ 		return -1;
+ 	}
++
++	mbedtls_x509_crt_free(git__ssl_conf->ca_chain);
++	git__free(git__ssl_conf->ca_chain);
++	mbedtls_ssl_conf_ca_chain(git__ssl_conf, cacert, NULL);
++
+ 	return 0;
+ }
+ 
+@@ -424,10 +440,10 @@ int git_mbedtls_stream_new(git_stream **out, const char *host, const char *port)
+ 	return -1;
+ }
+ 
+-int git_mbedtls__set_cert_location(const char *file, const char *path)
++int git_mbedtls__set_cert_location(const char *path, int is_dir)
+ {
+-	GIT_UNUSED(file);
+ 	GIT_UNUSED(path);
++	GIT_UNUSED(is_dir);
+ 
+ 	giterr_set(GITERR_SSL, "mbedTLS is not supported in this version");
+ 	return -1;
+diff --git a/src/streams/mbedtls.h b/src/streams/mbedtls.h
+index 8dab2b6c99..7283698ffa 100644
+--- a/src/streams/mbedtls.h
++++ b/src/streams/mbedtls.h
+@@ -15,6 +15,6 @@ extern int git_mbedtls_stream_global_init(void);
+ 
+ extern int git_mbedtls_stream_new(git_stream **out, const char *host, const char *port);
+ 
+-extern int git_mbedtls__set_cert_location(const char *file, const char *path);
++extern int git_mbedtls__set_cert_location(const char *path, int is_dir);
+ 
+ #endif
+
+From b3e0280d0b76891cae9f9abb8650938f86b6ef2c Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:11 +0200
+Subject: [PATCH 11/15] mbedtls: display error codes as hex for consistency
+ with mbedTLS docs
+
+Remaining parts of https://github.com/JuliaLang/julia/blob/8d47a314537779c8fb86642c54925613628a91b0/deps/patches/libgit2-mbedtls-fixup.patch
+---
+ src/streams/mbedtls.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/streams/mbedtls.c b/src/streams/mbedtls.c
+index d134e865f6..0a49a36a6f 100644
+--- a/src/streams/mbedtls.c
++++ b/src/streams/mbedtls.c
+@@ -181,12 +181,12 @@ static int ssl_set_error(mbedtls_ssl_context *ssl, int error)
+ 		break;
+ 
+ 	case MBEDTLS_ERR_X509_CERT_VERIFY_FAILED:
+-		giterr_set(GITERR_SSL, "SSL error: %x[%x] - %s", error, ssl->session_negotiate->verify_result, errbuf);
++		giterr_set(GITERR_SSL, "SSL error: %#04x [%x] - %s", error, ssl->session_negotiate->verify_result, errbuf);
+ 		ret = GIT_ECERTIFICATE;
+ 		break;
+ 
+ 	default:
+-		giterr_set(GITERR_SSL, "SSL error: %x - %s", error, errbuf);
++		giterr_set(GITERR_SSL, "SSL error: %#04x - %s", error, errbuf);
+ 	}
+ 
+ 	return ret;
+@@ -212,7 +212,7 @@ static int verify_server_cert(mbedtls_ssl_context *ssl)
+ 		char vrfy_buf[512];
+ 		int len = mbedtls_x509_crt_verify_info(vrfy_buf, sizeof(vrfy_buf), "", ret);
+ 		if (len >= 1) vrfy_buf[len - 1] = '\0'; /* Remove trailing \n */
+-		giterr_set(GITERR_SSL, "the SSL certificate is invalid: %x - %s", ret, vrfy_buf);
++		giterr_set(GITERR_SSL, "the SSL certificate is invalid: %#04x - %s", ret, vrfy_buf);
+ 		return GIT_ECERTIFICATE;
+ 	}
+ 
+@@ -410,7 +410,7 @@ int git_mbedtls__set_cert_location(const char *path, int is_dir)
+ 		mbedtls_x509_crt_free(cacert);
+ 		git__free(cacert);
+ 		mbedtls_strerror( ret, errbuf, 512 );
+-		giterr_set(GITERR_SSL, "failed to load CA certificates : %s (%d)", errbuf, ret);
++		giterr_set(GITERR_SSL, "failed to load CA certificates: %#04x - %s", ret, errbuf);
+ 		return -1;
+ 	}
+ 
+
+From e3d764a46b41886d8700e6d2c70c7dd33b255f96 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:12 +0200
+Subject: [PATCH 12/15] tests: clarify comment
+
+---
+ tests/core/stream.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/tests/core/stream.c b/tests/core/stream.c
+index 9bed4ae278..262888b10d 100644
+--- a/tests/core/stream.c
++++ b/tests/core/stream.c
+@@ -33,9 +33,8 @@ void test_core_stream__register_tls(void)
+ 	cl_git_pass(git_stream_register_tls(NULL));
+ 	error = git_tls_stream_new(&stream, "localhost", "443");
+ 
+-	/* We don't have arbitrary TLS stream support on Windows
+-	 * or when openssl support is disabled (except on OSX
+-	 * with Security framework).
++	/* We don't have TLS support enabled, or we're on Windows,
++	 * which has no arbitrary TLS stream support.
+ 	 */
+ #if defined(GIT_WIN32) || !defined(GIT_HTTPS)
+ 	cl_git_fail_with(-1, error);
+
+From 54554757c0595f5b3705f15d1212b34984bb35d1 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:14 +0200
+Subject: [PATCH 13/15] cmake: make our preferred backend ordering consistent
+
+---
+ src/CMakeLists.txt | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index fa86d9fb44..0f5d78547b 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -133,6 +133,8 @@ ELSE ()
+ ENDIF()
+ 
+ IF (USE_HTTPS)
++	# We try to find any packages our backends might use
++	FIND_PACKAGE(OpenSSL)
+ 	FIND_PACKAGE(mbedTLS)
+ 	IF (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+ 		FIND_PACKAGE(Security)
+@@ -150,10 +152,13 @@ IF (USE_HTTPS)
+ 			ENDIF()
+ 		ELSEIF (WINHTTP)
+ 			SET(HTTPS_BACKEND "WinHTTP")
++		ELSEIF(OPENSSL_FOUND)
++			SET(HTTPS_BACKEND "OpenSSL")
+ 		ELSEIF(MBEDTLS_FOUND)
+ 			SET(HTTPS_BACKEND "mbedTLS")
+ 		ELSE()
+-			SET(HTTPS_BACKEND "OpenSSL")
++			MESSAGE(FATAL_ERROR "Unable to autodetect a usable HTTPS backend."
++				"Please pass the backend name explicitly (-DUSE_HTTPS=backend)")
+ 		ENDIF()
+ 	ELSE()
+ 		# Backend was explicitly set
+@@ -177,8 +182,6 @@ IF (USE_HTTPS)
+ 		LIST(APPEND LIBGIT2_LIBS ${COREFOUNDATION_LIBRARIES} ${SECURITY_LIBRARIES})
+ 		LIST(APPEND LIBGIT2_PC_LIBS ${COREFOUNDATION_LDFLAGS} ${SECURITY_LDFLAGS})
+ 	ELSEIF (HTTPS_BACKEND STREQUAL "OpenSSL")
+-		FIND_PACKAGE(OpenSSL)
+-
+ 		IF (NOT OPENSSL_FOUND)
+ 			MESSAGE(FATAL_ERROR "Asked for OpenSSL TLS backend, but it wasn't found")
+ 		ENDIF()
+
+From 10aff3d5236c390155d247c9c366a9e4ff133825 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:15 +0200
+Subject: [PATCH 14/15] travis: just grab what we need from mbedtls
+
+---
+ script/install-deps-linux.sh | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/script/install-deps-linux.sh b/script/install-deps-linux.sh
+index c084ca2e7c..68b3cc2756 100755
+--- a/script/install-deps-linux.sh
++++ b/script/install-deps-linux.sh
+@@ -3,9 +3,8 @@
+ set -x
+ 
+ if [ "$MBEDTLS" ]; then
+-  git clone https://github.com/ARMmbed/mbedtls.git ./deps/mbedtls
++  git clone --depth 10 --single-branch --branch mbedtls-2.6.1 https://github.com/ARMmbed/mbedtls.git ./deps/mbedtls
+   cd ./deps/mbedtls
+-  git checkout mbedtls-2.6.1
+   cmake -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DUSE_SHARED_MBEDTLS_LIBRARY=ON -DUSE_STATIC_MBEDTLS_LIBRARY=OFF .
+   cmake --build .
+ 
+
+From cb2da47e56159faaaf143943c74ffb8f60a988b1 Mon Sep 17 00:00:00 2001
+From: Etienne Samson <samson.etienne@gmail.com>
+Date: Thu, 29 Mar 2018 22:14:17 +0200
+Subject: [PATCH 15/15] travis: pass -fPIC when configuring mbedtls
+
+---
+ script/install-deps-linux.sh | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/script/install-deps-linux.sh b/script/install-deps-linux.sh
+index 68b3cc2756..99cbde4e0a 100755
+--- a/script/install-deps-linux.sh
++++ b/script/install-deps-linux.sh
+@@ -5,7 +5,8 @@ set -x
+ if [ "$MBEDTLS" ]; then
+   git clone --depth 10 --single-branch --branch mbedtls-2.6.1 https://github.com/ARMmbed/mbedtls.git ./deps/mbedtls
+   cd ./deps/mbedtls
+-  cmake -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DUSE_SHARED_MBEDTLS_LIBRARY=ON -DUSE_STATIC_MBEDTLS_LIBRARY=OFF .
++  # We pass -fPIC explicitely because we'll include it in libgit2.so
++  CFLAGS=-fPIC cmake -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DUSE_SHARED_MBEDTLS_LIBRARY=OFF -DUSE_STATIC_MBEDTLS_LIBRARY=ON .
+   cmake --build .
+ 
+   echo "mbedTLS built in `pwd`"
