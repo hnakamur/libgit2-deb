@@ -1,4 +1,4 @@
-libgit2 (0.27.0+dfsg.1-0.1) unstable; urgency=medium
+libgit2 (0.27.0+dfsg.1-0.1) experimental; urgency=medium
 
   * Non-maintainer upload.
 
