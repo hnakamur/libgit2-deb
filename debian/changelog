@@ -1,13 +1,13 @@
 libgit2 (0.27.0+dfsg.1-0.1) experimental; urgency=medium
 
   * Non-maintainer upload.
-
-  [ Pirate Praveen ]
-  * New upstream version 0.27.0
+  * New upstream version 0.27.0 (Closes: #869665)
   * Switch to mbedTLS with upstream patch
+    (Thanks to Nicolas Braud-Santoni for his efforts to update curl support
+    patch)
   * Library transition libgit2-26 to libgit2-27
 
- -- Nicolas Braud-Santoni <nicolas@braud-santoni.eu>  Wed, 02 May 2018 22:30:54 +0200
+ -- Pirate Praveen <praveen@debian.org>  Sun, 06 May 2018 17:57:24 +0530
 
 libgit2 (0.26.0+dfsg.1-1.2) unstable; urgency=medium
 
