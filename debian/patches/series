@@ -1,1 +1,2 @@
 use-mbedtls.patch
+disable-online-tests.patch
