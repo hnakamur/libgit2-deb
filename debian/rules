@@ -27,7 +27,7 @@ override_dh_auto_configure:
 	dh_auto_configure --builddirectory=build-debian-devel -- \
 		-DCMAKE_BUILD_TYPE:STRING=Release \
 		-DTHREADSAFE:BOOL=ON \
-		-DUSE_OPENSSL:BOOL=OFF \
+		-DUSE_HTTPS=mbedTLS \
 		-DUSE_CURL_SSL:BOOL=ON \
 		-DUSE_GSSAPI:BOOL=ON \
 		-DBUILD_CLAR:BOOL=OFF \
