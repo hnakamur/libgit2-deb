@@ -1,2 +1,3 @@
 use-mbedtls.patch
 disable-online-tests.patch
+remove-mbedtls-from-pkgconfig.patch
