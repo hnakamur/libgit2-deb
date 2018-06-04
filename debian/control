@@ -2,7 +2,7 @@ Source: libgit2
 Section: libs
 Priority: optional
 Maintainer: Russell Sim <russell.sim@gmail.com>
-Build-Depends: debhelper (>= 11),
+Build-Depends: debhelper (>= 11~),
                python-minimal (>= 2.4.0), pkg-config,
                cmake, libz-dev, libmbedtls-dev,
                libssh2-1-dev, libhttp-parser-dev, libkrb5-dev
