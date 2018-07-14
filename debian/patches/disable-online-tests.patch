@@ -1,3 +1,5 @@
+Skip tests that needs an active internet connection
+
 --- a/tests/CMakeLists.txt
 +++ b/tests/CMakeLists.txt
 @@ -53,11 +53,11 @@

@@ -1,8 +1,22 @@
-libgit2 (0.27.0+dfsg.1-0.5~bpo9+1) stretch-backports; urgency=medium
+libgit2 (0.27.0+dfsg.1-0.7~bpo9+1) stretch-backports; urgency=medium
 
   * Rebuild for stretch-backports.
 
  -- Pirate Praveen <praveen@debian.org>  Mon, 04 Jun 2018 20:42:33 +0530
+
+libgit2 (0.27.0+dfsg.1-0.7) unstable; urgency=medium
+
+  * Non-maintainer upload
+  * Enable basic autopkgtest
+
+ -- Pirate Praveen <praveen@debian.org>  Fri, 13 Jul 2018 08:19:44 +0530
+
+libgit2 (0.27.0+dfsg.1-0.6) unstable; urgency=medium
+
+  * Non-maintainer upload
+  * Reupload to unstable
+
+ -- Pirate Praveen <praveen@debian.org>  Wed, 11 Jul 2018 18:45:42 +0530
 
 libgit2 (0.27.0+dfsg.1-0.5) experimental; urgency=medium
 
