@@ -13,8 +13,6 @@ TEST_TMPDIR := $(CURDIR)/tmp-test
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk
-# build with gcc 7 segafaults in armhf
-export CC=gcc-8
 
 override_dh_auto_configure:
 	dh_auto_configure --builddirectory=build-debian-release -- \
