@@ -1,7 +1,7 @@
 libgit2 (0.27.0+dfsg.1-0.9) UNRELEASED; urgency=medium
 
   * Non-maintainer upload.
-  * Fix random segfaults in threads::diff.
+  * Fix random segfaults in threads::diff. (Closes: #904004)
   * Don't specifically use gcc-8 now that it's already the Debian default.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 05 Aug 2018 06:08:38 -0700
