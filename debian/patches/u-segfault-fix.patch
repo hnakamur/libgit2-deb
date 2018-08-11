@@ -1,17 +1,10 @@
-commit d1919485a5541fb3171d6fa835c7c0de41243dea
 Author: Edward Thomson <ethomson@edwardthomson.com>
-Date:   Sun Aug 5 11:01:14 2018 +0100
+Bug: https://github.com/libgit2/libgit2/issues/4753
+Bug: https://github.com/libgit2/libgit2/pull/4754
 
-    threads::diff: use separate git_repository objects
-    
-    Our thread policies state that we cannot re-use the `git_repository`
-    across threads.  Our tests cannot deviate from that.
-
-diff --git a/tests/threads/diff.c b/tests/threads/diff.c
-index 256040265..ab34b32a1 100644
 --- a/tests/threads/diff.c
 +++ b/tests/threads/diff.c
-@@ -76,26 +76,29 @@ static void free_trees(void)
+@@ -76,26 +76,29 @@
  static void *run_index_diffs(void *arg)
  {
  	int thread = *(int *)arg;
@@ -46,7 +39,7 @@ index 256040265..ab34b32a1 100644
  			git_index_free(idx);
  			break;
  		}
-@@ -132,6 +135,7 @@ static void *run_index_diffs(void *arg)
+@@ -132,6 +135,7 @@
  	}
  
  	git_diff_free(diff);
@@ -54,7 +47,7 @@ index 256040265..ab34b32a1 100644
  	giterr_clear();
  
  	return arg;
-@@ -152,8 +156,10 @@ static void *run_index_diffs_with_modifier(void *arg)
+@@ -152,8 +156,10 @@
  	git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
  	git_diff *diff = NULL;
  	git_index *idx = NULL;
@@ -66,7 +59,7 @@ index 256040265..ab34b32a1 100644
  
  	/* have first thread altering the index as we go */
  	if (thread == 0) {
-@@ -176,17 +182,17 @@ static void *run_index_diffs_with_modifier(void *arg)
+@@ -176,17 +182,17 @@
  
  	switch (thread & 0x03) {
  	case 0: /* diff index to workdir */;
@@ -88,7 +81,7 @@ index 256040265..ab34b32a1 100644
  		break;
  	}
  
-@@ -196,6 +202,7 @@ static void *run_index_diffs_with_modifier(void *arg)
+@@ -196,6 +202,7 @@
  
  done:
  	git_index_free(idx);
@@ -96,3 +89,31 @@ index 256040265..ab34b32a1 100644
  	giterr_clear();
  
  	return arg;
+--- a/tests/threads/iterator.c
++++ b/tests/threads/iterator.c
+@@ -12,14 +12,16 @@
+ static void *run_workdir_iterator(void *arg)
+ {
+ 	int error = 0;
++	git_repository *repo;
+ 	git_iterator *iter;
+ 	git_iterator_options iter_opts = GIT_ITERATOR_OPTIONS_INIT;
+ 	const git_index_entry *entry = NULL;
+ 
+ 	iter_opts.flags = GIT_ITERATOR_DONT_AUTOEXPAND;
+ 
++	cl_git_pass(git_repository_open(&repo, git_repository_path(_repo)));
+ 	cl_git_pass(git_iterator_for_workdir(
+-		&iter, _repo, NULL, NULL, &iter_opts));
++		&iter, repo, NULL, NULL, &iter_opts));
+ 
+ 	while (!error) {
+ 		if (entry && entry->mode == GIT_FILEMODE_TREE) {
+@@ -38,6 +40,7 @@
+ 	cl_assert_equal_i(GIT_ITEROVER, error);
+ 
+ 	git_iterator_free(iter);
++	git_repository_free(repo);
+ 	giterr_clear();
+ 	return arg;
+ }

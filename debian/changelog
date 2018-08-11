@@ -1,3 +1,10 @@
+libgit2 (0.27.4+dfsg.1-0.1) UNRELEASED; urgency=medium
+
+  * Non-maintainer upload.
+  * Totally For Reals fix the segfaults. (Closes: #904004)
+
+ -- Ximin Luo <infinity0@debian.org>  Fri, 10 Aug 2018 20:38:32 -0700
+
 libgit2 (0.27.0+dfsg.1-0.9) unstable; urgency=medium
 
   * Non-maintainer upload.
