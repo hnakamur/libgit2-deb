@@ -1,8 +1,31 @@
-libgit2 (0.27.0+dfsg.1-0.7~bpo9+1) stretch-backports; urgency=medium
+libgit2 (0.27.4+dfsg.1-0.1~bpo9+1) stretch-backports; urgency=medium
 
   * Rebuild for stretch-backports.
 
  -- Pirate Praveen <praveen@debian.org>  Mon, 04 Jun 2018 20:42:33 +0530
+
+libgit2 (0.27.4+dfsg.1-0.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Totally For Reals fix the segfaults. (Closes: #904004)
+
+ -- Ximin Luo <infinity0@debian.org>  Fri, 10 Aug 2018 21:29:21 -0700
+
+libgit2 (0.27.0+dfsg.1-0.9) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Fix random segfaults in threads::diff. (Closes: #904004)
+  * Don't specifically use gcc-8 now that it's already the Debian default.
+
+ -- Ximin Luo <infinity0@debian.org>  Sun, 05 Aug 2018 06:14:33 -0700
+
+libgit2 (0.27.0+dfsg.1-0.8) unstable; urgency=medium
+
+  * Non-maintainer upload
+  * Force build with gcc-8 to fix segfaults in armhf build (Closes: #904004)
+
+ -- Pirate Praveen <praveen@debian.org>  Wed, 18 Jul 2018 16:03:06 +0530
+>>>>>>> master
 
 libgit2 (0.27.0+dfsg.1-0.7) unstable; urgency=medium
 
