@@ -1774,7 +1774,8 @@ int git_index_conflict_add(git_index *index,
 		if (entries[i] && !valid_filemode(entries[i]->mode)) {
 			giterr_set(GITERR_INDEX, "invalid filemode for stage %d entry",
 				i + 1);
-			return -1;
+			ret = -1;
+			goto on_error;
 		}
 	}
 
@@ -2206,7 +2207,7 @@ static int read_reuc(git_index *index, const char *buffer, size_t size)
 		for (i = 0; i < 3; i++) {
 			int64_t tmp;
 
-			if (git__strtol64(&tmp, buffer, &endptr, 8) < 0 ||
+			if (git__strntol64(&tmp, buffer, size, &endptr, 8) < 0 ||
 				!endptr || endptr == buffer || *endptr ||
 				tmp < 0 || tmp > UINT32_MAX) {
 				index_entry_reuc_free(lost);
@@ -3509,7 +3510,7 @@ int git_index_snapshot_new(git_vector *snap, git_index *index)
 	error = git_vector_dup(snap, &index->entries, index->entries._cmp);
 
 	if (error < 0)
-		git_index_free(index);
+		git_index_snapshot_release(snap, index);
 
 	return error;
 }
