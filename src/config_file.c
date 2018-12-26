@@ -928,6 +928,9 @@ static int parse_include(git_config_parser *reader,
 	char *dir;
 	int result;
 
+	if (!file)
+		return 0;
+
 	if ((result = git_path_dirname_r(&path, reader->file->path)) < 0)
 		return result;
 
@@ -1029,7 +1032,7 @@ static int parse_conditional_include(git_config_parser *reader,
 	size_t i;
 	int error = 0, matches;
 
-	if (!parse_data->repo)
+	if (!parse_data->repo || !file)
 		return 0;
 
 	condition = git__substrdup(section + strlen("includeIf."),
@@ -1072,8 +1075,16 @@ static int read_on_variable(
 	GIT_UNUSED(line);
 	GIT_UNUSED(line_len);
 
+	if (current_section) {
+		/* TODO: Once warnings lang, we should likely warn
+		 * here. Git appears to warn in most cases if it sees
+		 * un-namespaced config options.
+		 */
+		git_buf_puts(&buf, current_section);
+		git_buf_putc(&buf, '.');
+	}
 	git__strtolower(var_name);
-	git_buf_printf(&buf, "%s.%s", current_section, var_name);
+	git_buf_puts(&buf, var_name);
 	git__free(var_name);
 
 	if (git_buf_oom(&buf)) {
