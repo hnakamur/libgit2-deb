@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 11~),
                python-minimal (>= 2.4.0), pkg-config,
                cmake, libz-dev, libmbedtls-dev,
                libssh2-1-dev, libhttp-parser-dev, libkrb5-dev
-Standards-Version: 4.1.4
+Standards-Version: 4.3.0
 Homepage: https://libgit2.github.com/
 Vcs-Git: https://salsa.debian.org/debian/libgit2.git
 Vcs-Browser: https://salsa.debian.org/debian/libgit2

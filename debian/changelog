@@ -1,3 +1,10 @@
+libgit2 (0.27.7+dfsg.1-0.1) unstable; urgency=high
+
+  * Non-maintainer upload.
+  * New upstream release (Closes: #917176)
+
+ -- Raju Devidas <rajudev@disroot.org>  Wed, 26 Dec 2018 22:59:30 +0530
+
 libgit2 (0.27.4+dfsg.1-0.1) unstable; urgency=medium
 
   * Non-maintainer upload.
