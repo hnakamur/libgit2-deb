@@ -114,7 +114,7 @@ Subject: [PATCH 01/15] mbedtls: initial support
 +)
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
-@@ -133,6 +133,9 @@
+@@ -138,6 +138,9 @@
  ENDIF()
  
  IF (USE_HTTPS)
@@ -124,7 +124,7 @@ Subject: [PATCH 01/15] mbedtls: initial support
  	IF (CMAKE_SYSTEM_NAME MATCHES "Darwin")
  		FIND_PACKAGE(Security)
  		FIND_PACKAGE(CoreFoundation)
-@@ -149,8 +152,13 @@
+@@ -154,8 +157,13 @@
  			ENDIF()
  		ELSEIF (WINHTTP)
  			SET(HTTPS_BACKEND "WinHTTP")
@@ -139,7 +139,7 @@ Subject: [PATCH 01/15] mbedtls: initial support
  		ENDIF()
  	ELSE()
  		# Backend was explicitly set
-@@ -174,8 +182,6 @@
+@@ -179,8 +187,6 @@
  		LIST(APPEND LIBGIT2_LIBS ${COREFOUNDATION_LIBRARIES} ${SECURITY_LIBRARIES})
  		LIST(APPEND LIBGIT2_PC_LIBS ${COREFOUNDATION_LDFLAGS} ${SECURITY_LDFLAGS})
  	ELSEIF (HTTPS_BACKEND STREQUAL "OpenSSL")
@@ -148,7 +148,7 @@ Subject: [PATCH 01/15] mbedtls: initial support
  		IF (NOT OPENSSL_FOUND)
  			MESSAGE(FATAL_ERROR "Asked for OpenSSL TLS backend, but it wasn't found")
  		ENDIF()
-@@ -185,6 +191,53 @@
+@@ -190,6 +196,53 @@
  		LIST(APPEND LIBGIT2_LIBS ${OPENSSL_LIBRARIES})
  		LIST(APPEND LIBGIT2_PC_LIBS ${OPENSSL_LDFLAGS})
  		LIST(APPEND LIBGIT2_PC_REQUIRES "openssl")
@@ -202,7 +202,7 @@ Subject: [PATCH 01/15] mbedtls: initial support
  	ELSEIF (HTTPS_BACKEND STREQUAL "WinHTTP")
  		# WinHTTP setup was handled in the WinHTTP-specific block above
  	ELSE()
-@@ -230,6 +283,11 @@
+@@ -235,6 +288,11 @@
  ELSEIF(SHA1_BACKEND STREQUAL "CommonCrypto")
  	ADD_FEATURE_INFO(SHA ON "using CommonCrypto")
  	SET(GIT_SHA1_COMMON_CRYPTO 1)
@@ -774,7 +774,7 @@ Subject: [PATCH 01/15] mbedtls: initial support
  	GIT_UNUSED(host);
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -48,7 +48,7 @@
+@@ -49,7 +49,7 @@
  OPTION( ENABLE_TRACE		"Enables tracing support"				OFF )
  OPTION( LIBGIT2_FILENAME	"Name of the produced binary"			OFF )
  
@@ -878,25 +878,6 @@ Subject: [PATCH 01/15] mbedtls: initial support
  		ret = git_mwindow_global_init();
  
  	GIT_MEMORY_BARRIER;
---- a/.travis.yml
-+++ b/.travis.yml
-@@ -55,6 +55,16 @@
-          OPTIONS="-DBUILD_CLAR=ON -DBUILD_EXAMPLES=OFF -DDEBUG_POOL=ON -DCMAKE_BUILD_TYPE=Debug"
-      os: linux
-      dist: trusty
-+   - compiler: gcc
-+     env:
-+         MBEDTLS=1
-+         OPTIONS="-DTHREADSAFE=ON -DCMAKE_BUILD_TYPE=Release -DUSE_HTTPS=mbedTLS -DMBEDTLS_ROOT_DIR=../deps/mbedtls"
-+     os: linux
-+   - compiler: gcc
-+     env:
-+         MBEDTLS=1
-+         OPTIONS="-DTHREADSAFE=OFF -DBUILD_EXAMPLES=ON -DUSE_HTTPS=mbedTLS -DMBEDTLS_ROOT_DIR=../deps/mbedtls"
-+     os: linux
-  allow_failures:
-    - env: COVERITY=1
- 
 --- /dev/null
 +++ b/script/install-deps-linux.sh
 @@ -0,0 +1,13 @@
