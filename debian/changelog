@@ -1,3 +1,9 @@
+libgit2 (0.27.7+dfsg.1-0.1ppa1~ubuntu18.04.1) bionic; urgency=medium
+
+  * Backport to Ubuntu 18.04 LTS
+
+ -- Hiroaki Nakamura <hnakamur@gmail.com>  Sat, 20 Apr 2019 09:05:18 +0900
+
 libgit2 (0.27.7+dfsg.1-0.1) unstable; urgency=high
 
   * Non-maintainer upload.
